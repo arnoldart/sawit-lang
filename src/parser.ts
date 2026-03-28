@@ -3,13 +3,21 @@ import { Token } from "./lexer";
 export type Expr =
   | { type: "NUMBER"; value: number }
   | { type: "STRING"; value: string }
+
+  // ADDED: node AST untuk boolean
+  | { type: "BOOLEAN"; value: boolean }
+
   | { type: "IDENT"; name: string }
+
+  // ADDED: node AST untuk unary operator
+  | { type: "UNARY"; op: "-" | "!"; right: Expr }
+
   | {
-    type: "BINARY";
-    op: string;
-    left: Expr;
-    right: Expr;
-  };
+      type: "BINARY";
+      op: string;
+      left: Expr;
+      right: Expr;
+    };
 
 export type Stmt =
   | { type: "LET"; name: string; value: Expr }
@@ -21,11 +29,9 @@ let current = 0;
 
 function expectToken(index: number): Token {
   const token = tokens[index];
-
   if (!token) {
     throw new Error(`Unexpected end of input at token index ${index}`);
   }
-
   return token;
 }
 
@@ -40,76 +46,60 @@ function advance(): Token {
 }
 
 function match(type: Token["type"]): boolean {
-  if (peek()?.type !== type) {
-    return false;
-  }
-
+  if (peek()?.type !== type) return false;
   current += 1;
   return true;
 }
 
 function expectType(type: Token["type"], message: string): Token {
   const token = advance();
-
   if (token.type !== type) {
     throw new Error(message);
   }
-
   return token;
 }
 
-function parsePrimary(): Expr {
-  const token = advance();
-
-  if (token.type === "NUMBER") {
-    return { type: "NUMBER", value: token.value };
-  }
-
-  if (token.type === "STRING") {
-    return { type: "STRING", value: token.value };
-  }
-
-  if (token.type === "IDENT") {
-    return { type: "IDENT", name: token.value };
-  }
-
-  if (token.type === "LPAREN") {
-    const expr = parseExpression();
-    expectType("RPAREN", "Expected ')'");
-    return expr;
-  }
-
-  throw new Error("Unexpected token");
+function parseExpression(): Expr {
+  // ADDED: expression sekarang mulai dari logical OR
+  return parseLogicalOr();
 }
 
-// function parseBinary(): Expr {
-//   let left = parsePrimary();
+// ADDED: parser untuk ||
+function parseLogicalOr(): Expr {
+  let left = parseLogicalAnd();
 
-//   while (true) {
-//     const operator = peek();
+  while (peek()?.type === "OROR") {
+    advance();
+    const right = parseLogicalAnd();
 
-//     if (!operator || (operator.type !== "PLUS" && operator.type !== "LT" && operator.type !== "GT")) {
-//       break;
-//     }
+    left = {
+      type: "BINARY",
+      op: "||",
+      left,
+      right,
+    };
+  }
 
-//     advance();
-//     const right = parsePrimary();
-//     const op = operator.type === "PLUS" ? "+" : operator.type === "LT" ? "<" : ">";
+  return left;
+}
 
-//     left = {
-//       type: "BINARY",
-//       op,
-//       left,
-//       right,
-//     };
-//   }
+// ADDED: parser untuk &&
+function parseLogicalAnd(): Expr {
+  let left = parseEquality();
 
-//   return left;
-// }
+  while (peek()?.type === "ANDAND") {
+    advance();
+    const right = parseEquality();
 
-function parseExpression(): Expr {
-  // return parseComparison();
-  return parseEquality();
+    left = {
+      type: "BINARY",
+      op: "&&",
+      left,
+      right,
+    };
+  }
+
+  return left;
 }
 
 function parseEquality(): Expr {
@@ -117,7 +107,6 @@ function parseEquality(): Expr {
 
   while (true) {
     const op = peek();
-
     if (!op || (op.type !== "EQEQ" && op.type !== "NOTEQ")) break;
 
     advance();
@@ -139,11 +128,7 @@ function parseComparison(): Expr {
 
   while (true) {
     const op = peek();
-
-    if (
-      !op ||
-      !["LT", "GT", "LTE", "GTE"].includes(op.type)
-    ) break;
+    if (!op || !["LT", "GT", "LTE", "GTE"].includes(op.type)) break;
 
     advance();
     const right = parseAddition();
@@ -164,61 +149,11 @@ function parseComparison(): Expr {
   return left;
 }
 
-function parseMultiplication(): Expr {
-  let left = parsePrimary();
-
-  while (true) {
-    const op = peek();
-
-    if (!op || (op.type !== "STAR" && op.type !== "SLASH")) break;
-
-    advance();
-    const right = parsePrimary();
-
-    left = {
-      type: "BINARY",
-      op: op.type === "STAR" ? "*" : "/",
-      left,
-      right,
-    };
-  }
-
-  return left;
-}
-
-// function parseComparison(): Expr {
-//   let left = parseAddition();
-
-//   while (true) {
-//     const operator = peek();
-
-//     if (!operator || (operator.type !== "LT" && operator.type !== "GT")) {
-//       break;
-//     }
-
-//     advance();
-
-//     const right = parseAddition();
-
-//     const op = operator.type === "LT" ? "<" : ">";
-
-//     left = {
-//       type: "BINARY",
-//       op,
-//       left,
-//       right,
-//     };
-//   }
-
-//   return left;
-// }
-
 function parseAddition(): Expr {
   let left = parseMultiplication();
 
   while (true) {
     const op = peek();
-
     if (!op || (op.type !== "PLUS" && op.type !== "MINUS")) break;
 
     advance();
@@ -233,6 +168,87 @@ function parseAddition(): Expr {
   }
 
   return left;
+}
+
+function parseMultiplication(): Expr {
+  // ADDED: multiplication sekarang mengambil dari parseUnary
+  let left = parseUnary();
+
+  while (true) {
+    const op = peek();
+    if (!op || (op.type !== "STAR" && op.type !== "SLASH")) break;
+
+    advance();
+    const right = parseUnary();
+
+    left = {
+      type: "BINARY",
+      op: op.type === "STAR" ? "*" : "/",
+      left,
+      right,
+    };
+  }
+
+  return left;
+}
+
+// ADDED: parser unary untuk -x dan !x
+function parseUnary(): Expr {
+  const token = peek();
+
+  if (token?.type === "MINUS") {
+    advance();
+    return {
+      type: "UNARY",
+      op: "-",
+      right: parseUnary(),
+    };
+  }
+
+  if (token?.type === "BANG") {
+    advance();
+    return {
+      type: "UNARY",
+      op: "!",
+      right: parseUnary(),
+    };
+  }
+
+  return parsePrimary();
+}
+
+function parsePrimary(): Expr {
+  const token = advance();
+
+  if (token.type === "NUMBER") {
+    return { type: "NUMBER", value: token.value };
+  }
+
+  if (token.type === "STRING") {
+    return { type: "STRING", value: token.value };
+  }
+
+  // ADDED: parsing boolean literal
+  if (token.type === "TRUE") {
+    return { type: "BOOLEAN", value: true };
+  }
+
+  // ADDED: parsing boolean literal
+  if (token.type === "FALSE") {
+    return { type: "BOOLEAN", value: false };
+  }
+
+  if (token.type === "IDENT") {
+    return { type: "IDENT", name: token.value };
+  }
+
+  if (token.type === "LPAREN") {
+    const expr = parseExpression();
+    expectType("RPAREN", "Expected ')'");
+    return expr;
+  }
+
+  throw new Error(`Unexpected token at token index ${current - 1}`);
 }
 
 function parsePrintStatement(): Stmt {
