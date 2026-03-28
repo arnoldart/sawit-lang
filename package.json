@@ -1,19 +1,22 @@
 {
-  "name": "sawit-lang",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "dev": "ts-node src/index.ts test.sawit",
-    "test": "node scripts/run-tests.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.32.1",
-  "dependencies": {
-    "@types/node": "^25.5.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
-  }
+    "name":  "sawit-lang",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "dev":  "ts-node src/index.ts test.sawit",
+                    "test":  "node scripts/run-tests.js",
+                    "bench":  "node scripts/benchmark.js"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "packageManager":  "pnpm@10.32.1",
+    "dependencies":  {
+                         "@types/node":  "^25.5.0",
+                         "ts-node":  "^10.9.2",
+                         "typescript":  "^6.0.2"
+                     }
 }
