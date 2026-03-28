@@ -1,0 +1,7 @@
+print "halo sawit"
+
+if 1 < 2 {
+  print "ok"
+} else {
+  print "fail"
+}

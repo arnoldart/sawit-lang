@@ -1,0 +1,11 @@
+let x = 2 + 3 * 4
+let y = (2 + 3) * 4
+
+print x
+print y
+
+if x < y {
+  print 1
+} else {
+  print 0
+}

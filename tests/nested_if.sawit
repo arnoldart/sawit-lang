@@ -1,0 +1,13 @@
+let x = 10
+let y = 20
+
+if x < y {
+  print 1
+  if y > 15 {
+    print 2
+  } else {
+    print 3
+  }
+} else {
+  print 4
+}
