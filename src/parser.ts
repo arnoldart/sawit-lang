@@ -3,25 +3,22 @@ import { Token } from "./lexer";
 export type Expr =
   | { type: "NUMBER"; value: number }
   | { type: "STRING"; value: string }
-
-  // ADDED: node AST untuk boolean
   | { type: "BOOLEAN"; value: boolean }
-
   | { type: "IDENT"; name: string }
-
-  // ADDED: node AST untuk unary operator
   | { type: "UNARY"; op: "-" | "!"; right: Expr }
-
-  | {
-      type: "BINARY";
-      op: string;
-      left: Expr;
-      right: Expr;
-    };
+  | { type: "BINARY"; op: string; left: Expr; right: Expr }
+  | { type: "CALL"; callee: Expr; args: Expr[] };
 
 export type Stmt =
   | { type: "LET"; name: string; value: Expr }
+  | { type: "ASSIGN"; name: string; value: Expr }
   | { type: "IF"; condition: Expr; body: Stmt[]; elseBody?: Stmt[] }
+  | { type: "FUNCTION"; name: string; params: string[]; body: Stmt[] }
+  | { type: "RETURN"; value?: Expr }
+  | { type: "WHILE"; condition: Expr; body: Stmt[] }
+  | { type: "FOR"; init?: Stmt; condition?: Expr; update?: Stmt; body: Stmt[] }
+  | { type: "BREAK" }
+  | { type: "CONTINUE" }
   | { type: "PRINT"; value: Expr };
 
 let tokens: Token[] = [];
@@ -29,14 +26,20 @@ let current = 0;
 
 function expectToken(index: number): Token {
   const token = tokens[index];
+
   if (!token) {
     throw new Error(`Unexpected end of input at token index ${index}`);
   }
+
   return token;
 }
 
 function peek(): Token | undefined {
   return tokens[current];
+}
+
+function peekNext(): Token | undefined {
+  return tokens[current + 1];
 }
 
 function advance(): Token {
@@ -46,25 +49,28 @@ function advance(): Token {
 }
 
 function match(type: Token["type"]): boolean {
-  if (peek()?.type !== type) return false;
+  if (peek()?.type !== type) {
+    return false;
+  }
+
   current += 1;
   return true;
 }
 
 function expectType(type: Token["type"], message: string): Token {
   const token = advance();
+
   if (token.type !== type) {
     throw new Error(message);
   }
+
   return token;
 }
 
 function parseExpression(): Expr {
-  // ADDED: expression sekarang mulai dari logical OR
   return parseLogicalOr();
 }
 
-// ADDED: parser untuk ||
 function parseLogicalOr(): Expr {
   let left = parseLogicalAnd();
 
@@ -83,7 +89,6 @@ function parseLogicalOr(): Expr {
   return left;
 }
 
-// ADDED: parser untuk &&
 function parseLogicalAnd(): Expr {
   let left = parseEquality();
 
@@ -107,7 +112,10 @@ function parseEquality(): Expr {
 
   while (true) {
     const op = peek();
-    if (!op || (op.type !== "EQEQ" && op.type !== "NOTEQ")) break;
+
+    if (!op || (op.type !== "EQEQ" && op.type !== "NOTEQ")) {
+      break;
+    }
 
     advance();
     const right = parseComparison();
@@ -128,7 +136,10 @@ function parseComparison(): Expr {
 
   while (true) {
     const op = peek();
-    if (!op || !["LT", "GT", "LTE", "GTE"].includes(op.type)) break;
+
+    if (!op || !["LT", "GT", "LTE", "GTE"].includes(op.type)) {
+      break;
+    }
 
     advance();
     const right = parseAddition();
@@ -154,7 +165,10 @@ function parseAddition(): Expr {
 
   while (true) {
     const op = peek();
-    if (!op || (op.type !== "PLUS" && op.type !== "MINUS")) break;
+
+    if (!op || (op.type !== "PLUS" && op.type !== "MINUS")) {
+      break;
+    }
 
     advance();
     const right = parseMultiplication();
@@ -171,12 +185,14 @@ function parseAddition(): Expr {
 }
 
 function parseMultiplication(): Expr {
-  // ADDED: multiplication sekarang mengambil dari parseUnary
   let left = parseUnary();
 
   while (true) {
     const op = peek();
-    if (!op || (op.type !== "STAR" && op.type !== "SLASH")) break;
+
+    if (!op || (op.type !== "STAR" && op.type !== "SLASH")) {
+      break;
+    }
 
     advance();
     const right = parseUnary();
@@ -192,7 +208,6 @@ function parseMultiplication(): Expr {
   return left;
 }
 
-// ADDED: parser unary untuk -x dan !x
 function parseUnary(): Expr {
   const token = peek();
 
@@ -214,7 +229,32 @@ function parseUnary(): Expr {
     };
   }
 
-  return parsePrimary();
+  return parseCall();
+}
+
+function parseCall(): Expr {
+  let expr = parsePrimary();
+
+  while (peek()?.type === "LPAREN") {
+    advance();
+
+    const args: Expr[] = [];
+    if (peek()?.type !== "RPAREN") {
+      do {
+        args.push(parseExpression());
+      } while (match("COMMA"));
+    }
+
+    expectType("RPAREN", `Expected ')' after function arguments at token index ${current}`);
+
+    expr = {
+      type: "CALL",
+      callee: expr,
+      args,
+    };
+  }
+
+  return expr;
 }
 
 function parsePrimary(): Expr {
@@ -228,12 +268,10 @@ function parsePrimary(): Expr {
     return { type: "STRING", value: token.value };
   }
 
-  // ADDED: parsing boolean literal
   if (token.type === "TRUE") {
     return { type: "BOOLEAN", value: true };
   }
 
-  // ADDED: parsing boolean literal
   if (token.type === "FALSE") {
     return { type: "BOOLEAN", value: false };
   }
@@ -295,6 +333,22 @@ function parseLetStatement(): Stmt {
   };
 }
 
+function parseAssignmentStatement(): Stmt {
+  const nameToken = advance();
+
+  if (nameToken.type !== "IDENT") {
+    throw new Error(`Expected identifier in assignment at token index ${current - 1}`);
+  }
+
+  expectType("EQUAL", `Expected '=' in assignment at token index ${current}`);
+
+  return {
+    type: "ASSIGN",
+    name: nameToken.value,
+    value: parseExpression(),
+  };
+}
+
 function parseIfStatement(): Stmt {
   expectType("IF", `Expected 'if' at token index ${current}`);
 
@@ -314,6 +368,112 @@ function parseIfStatement(): Stmt {
   };
 }
 
+function parseFunctionDeclaration(): Stmt {
+  expectType("FUNCTION", `Expected 'function' at token index ${current}`);
+
+  const nameToken = advance();
+  if (nameToken.type !== "IDENT") {
+    throw new Error(`Expected function name at token index ${current - 1}`);
+  }
+
+  expectType("LPAREN", `Expected '(' after function name at token index ${current}`);
+
+  const params: string[] = [];
+  if (peek()?.type !== "RPAREN") {
+    do {
+      const paramToken = advance();
+      if (paramToken.type !== "IDENT") {
+        throw new Error(`Expected parameter name at token index ${current - 1}`);
+      }
+      params.push(paramToken.value);
+    } while (match("COMMA"));
+  }
+
+  expectType("RPAREN", `Expected ')' after parameters at token index ${current}`);
+
+  return {
+    type: "FUNCTION",
+    name: nameToken.value,
+    params,
+    body: parseBlock(),
+  };
+}
+
+function parseReturnStatement(): Stmt {
+  expectType("RETURN", `Expected 'return' at token index ${current}`);
+
+  if (!peek() || peek()?.type === "RBRACE") {
+    return { type: "RETURN" };
+  }
+
+  return {
+    type: "RETURN",
+    value: parseExpression(),
+  };
+}
+
+function parseWhileStatement(): Stmt {
+  expectType("WHILE", `Expected 'while' at token index ${current}`);
+
+  return {
+    type: "WHILE",
+    condition: parseExpression(),
+    body: parseBlock(),
+  };
+}
+
+function parseForClauseStatement(): Stmt {
+  if (peek()?.type === "LET") {
+    return parseLetStatement();
+  }
+
+  if (peek()?.type === "IDENT" && peekNext()?.type === "EQUAL") {
+    return parseAssignmentStatement();
+  }
+
+  throw new Error(`Expected let or assignment in for clause at token index ${current}`);
+}
+
+function parseForStatement(): Stmt {
+  expectType("FOR", `Expected 'for' at token index ${current}`);
+
+  let init: Stmt | undefined;
+  let condition: Expr | undefined;
+  let update: Stmt | undefined;
+
+  if (peek()?.type !== "SEMICOLON") {
+    init = parseForClauseStatement();
+  }
+  expectType("SEMICOLON", `Expected ';' after for initializer at token index ${current}`);
+
+  if (peek()?.type !== "SEMICOLON") {
+    condition = parseExpression();
+  }
+  expectType("SEMICOLON", `Expected ';' after for condition at token index ${current}`);
+
+  if (peek()?.type !== "LBRACE") {
+    update = parseForClauseStatement();
+  }
+
+  return {
+    type: "FOR",
+    init,
+    condition,
+    update,
+    body: parseBlock(),
+  };
+}
+
+function parseBreakStatement(): Stmt {
+  expectType("BREAK", `Expected 'break' at token index ${current}`);
+  return { type: "BREAK" };
+}
+
+function parseContinueStatement(): Stmt {
+  expectType("CONTINUE", `Expected 'continue' at token index ${current}`);
+  return { type: "CONTINUE" };
+}
+
 function parseStatement(): Stmt {
   const token = expectToken(current);
 
@@ -325,8 +485,36 @@ function parseStatement(): Stmt {
     return parseIfStatement();
   }
 
+  if (token.type === "FUNCTION") {
+    return parseFunctionDeclaration();
+  }
+
+  if (token.type === "RETURN") {
+    return parseReturnStatement();
+  }
+
+  if (token.type === "WHILE") {
+    return parseWhileStatement();
+  }
+
+  if (token.type === "FOR") {
+    return parseForStatement();
+  }
+
+  if (token.type === "BREAK") {
+    return parseBreakStatement();
+  }
+
+  if (token.type === "CONTINUE") {
+    return parseContinueStatement();
+  }
+
   if (token.type === "IDENT" && token.value === "print") {
     return parsePrintStatement();
+  }
+
+  if (token.type === "IDENT" && peekNext()?.type === "EQUAL") {
+    return parseAssignmentStatement();
   }
 
   throw new Error(`Unknown statement at token index ${current}`);

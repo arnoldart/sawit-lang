@@ -8,6 +8,7 @@ const testsDir = path.join(rootDir, "tests");
 
 const expectedFailures = new Set([
   "parse_error_missing_paren.sawit",
+  "undefined_variable.sawit",
 ]);
 
 const testFiles = readdirSync(testsDir)

@@ -2,11 +2,14 @@ export type Token =
   | { type: "LET" }
   | { type: "IF" }
   | { type: "ELSE" }
-
-  // ADDED: token untuk boolean literal
+  | { type: "FUNCTION" }
+  | { type: "RETURN" }
+  | { type: "WHILE" }
+  | { type: "FOR" }
+  | { type: "BREAK" }
+  | { type: "CONTINUE" }
   | { type: "TRUE" }
   | { type: "FALSE" }
-
   | { type: "IDENT"; value: string }
   | { type: "NUMBER"; value: number }
   | { type: "STRING"; value: string }
@@ -17,14 +20,11 @@ export type Token =
   | { type: "MINUS" }
   | { type: "STAR" }
   | { type: "SLASH" }
-
-  // ADDED: token untuk unary operator !
   | { type: "BANG" }
-
-  // ADDED: token untuk logical operator
   | { type: "ANDAND" }
   | { type: "OROR" }
-
+  | { type: "COMMA" }
+  | { type: "SEMICOLON" }
   | { type: "LPAREN" }
   | { type: "RPAREN" }
   | { type: "EQEQ" }
@@ -35,10 +35,9 @@ export type Token =
   | { type: "RBRACE" };
 
 export function tokenize(input: string): Token[] {
-  // ADDED: regex diperluas supaya bisa membaca ||, &&, !, true, false
   const words =
     input.match(
-      /"[^"]*"|\|\||&&|==|!=|<=|>=|[(){}+\-*/=!<>]|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?/g
+      /"[^"]*"|\|\||&&|==|!=|<=|>=|[(),;{}+\-*/=!<>]|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?/g
     ) ?? [];
 
   const tokens: Token[] = [];
@@ -47,11 +46,14 @@ export function tokenize(input: string): Token[] {
     if (w === "let") tokens.push({ type: "LET" });
     else if (w === "if") tokens.push({ type: "IF" });
     else if (w === "else") tokens.push({ type: "ELSE" });
-
-    // ADDED: boolean literal
+    else if (w === "function") tokens.push({ type: "FUNCTION" });
+    else if (w === "return") tokens.push({ type: "RETURN" });
+    else if (w === "while") tokens.push({ type: "WHILE" });
+    else if (w === "for") tokens.push({ type: "FOR" });
+    else if (w === "break") tokens.push({ type: "BREAK" });
+    else if (w === "continue") tokens.push({ type: "CONTINUE" });
     else if (w === "true") tokens.push({ type: "TRUE" });
     else if (w === "false") tokens.push({ type: "FALSE" });
-
     else if (w === "=") tokens.push({ type: "EQUAL" });
     else if (w === "<") tokens.push({ type: "LT" });
     else if (w === ">") tokens.push({ type: "GT" });
@@ -59,14 +61,11 @@ export function tokenize(input: string): Token[] {
     else if (w === "-") tokens.push({ type: "MINUS" });
     else if (w === "*") tokens.push({ type: "STAR" });
     else if (w === "/") tokens.push({ type: "SLASH" });
-
-    // ADDED: unary !
     else if (w === "!") tokens.push({ type: "BANG" });
-
-    // ADDED: logical operators
     else if (w === "&&") tokens.push({ type: "ANDAND" });
     else if (w === "||") tokens.push({ type: "OROR" });
-
+    else if (w === ",") tokens.push({ type: "COMMA" });
+    else if (w === ";") tokens.push({ type: "SEMICOLON" });
     else if (w === "(") tokens.push({ type: "LPAREN" });
     else if (w === ")") tokens.push({ type: "RPAREN" });
     else if (w === "==") tokens.push({ type: "EQEQ" });
@@ -76,7 +75,7 @@ export function tokenize(input: string): Token[] {
     else if (w === "{") tokens.push({ type: "LBRACE" });
     else if (w === "}") tokens.push({ type: "RBRACE" });
     else if (!isNaN(Number(w))) tokens.push({ type: "NUMBER", value: Number(w) });
-    else if (w.startsWith('"')) tokens.push({ type: "STRING", value: w.replace(/"/g, "") });
+    else if (w.startsWith('"')) tokens.push({ type: "STRING", value: w.slice(1, -1) });
     else tokens.push({ type: "IDENT", value: w });
   }
 
