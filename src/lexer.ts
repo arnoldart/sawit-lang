@@ -9,11 +9,21 @@ export type Token =
     | { type: "LT" }
     | { type: "GT" }
     | { type: "PLUS" }
+    | { type: "MINUS" }
+    | { type: "STAR" }
+    | { type: "SLASH" }
+    | { type: "LPAREN" }
+    | { type: "RPAREN" }
+    | { type: "EQEQ" }
+    | { type: "NOTEQ" }
+    | { type: "LTE" }
+    | { type: "GTE" }
     | { type: "LBRACE" }
     | { type: "RBRACE" };
 
 export function tokenize(input: string): Token[] {
-    const words = input.match(/"[^"]*"|[{}]|[^\s{}]+/g) ?? [];
+    const words =
+        input.match(/"[^"]*"|==|!=|<=|>=|[(){}+\-*/=<>]|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?/g) ?? [];
 
     const tokens: Token[] = [];
 
@@ -25,6 +35,15 @@ export function tokenize(input: string): Token[] {
         else if (w === "<") tokens.push({ type: "LT" });
         else if (w === ">") tokens.push({ type: "GT" });
         else if (w === "+") tokens.push({ type: "PLUS" });
+        else if (w === "-") tokens.push({ type: "MINUS" });
+        else if (w === "*") tokens.push({ type: "STAR" });
+        else if (w === "/") tokens.push({ type: "SLASH" });
+        else if (w === "(") tokens.push({ type: "LPAREN" });
+        else if (w === ")") tokens.push({ type: "RPAREN" });
+        else if (w === "==") tokens.push({ type: "EQEQ" });
+        else if (w === "!=") tokens.push({ type: "NOTEQ" });
+        else if (w === "<=") tokens.push({ type: "LTE" });
+        else if (w === ">=") tokens.push({ type: "GTE" });
         else if (w === "{") tokens.push({ type: "LBRACE" });
         else if (w === "}") tokens.push({ type: "RBRACE" });
         else if (!isNaN(Number(w)))

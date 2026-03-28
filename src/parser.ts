@@ -4,7 +4,12 @@ export type Expr =
   | { type: "NUMBER"; value: number }
   | { type: "STRING"; value: string }
   | { type: "IDENT"; name: string }
-  | { type: "BINARY"; op: "+" | "<" | ">"; left: Expr; right: Expr };
+  | {
+    type: "BINARY";
+    op: string;
+    left: Expr;
+    right: Expr;
+  };
 
 export type Stmt =
   | { type: "LET"; name: string; value: Expr }
@@ -68,6 +73,12 @@ function parsePrimary(): Expr {
     return { type: "IDENT", name: token.value };
   }
 
+  if (token.type === "LPAREN") {
+    const expr = parseExpression();
+    expectType("RPAREN", "Expected ')'");
+    return expr;
+  }
+
   throw new Error("Unexpected token");
 }
 
@@ -97,28 +108,24 @@ function parsePrimary(): Expr {
 // }
 
 function parseExpression(): Expr {
-  return parseComparison();
+  // return parseComparison();
+  return parseEquality();
 }
 
-function parseComparison(): Expr {
-  let left = parseAddition();
+function parseEquality(): Expr {
+  let left = parseComparison();
 
   while (true) {
-    const operator = peek();
+    const op = peek();
 
-    if (!operator || (operator.type !== "LT" && operator.type !== "GT")) {
-      break;
-    }
+    if (!op || (op.type !== "EQEQ" && op.type !== "NOTEQ")) break;
 
     advance();
-
-    const right = parseAddition();
-
-    const op = operator.type === "LT" ? "<" : ">";
+    const right = parseComparison();
 
     left = {
       type: "BINARY",
-      op,
+      op: op.type === "EQEQ" ? "==" : "!=",
       left,
       right,
     };
@@ -127,17 +134,99 @@ function parseComparison(): Expr {
   return left;
 }
 
-function parseAddition(): Expr {
+function parseComparison(): Expr {
+  let left = parseAddition();
+
+  while (true) {
+    const op = peek();
+
+    if (
+      !op ||
+      !["LT", "GT", "LTE", "GTE"].includes(op.type)
+    ) break;
+
+    advance();
+    const right = parseAddition();
+
+    let operator = "<";
+    if (op.type === "GT") operator = ">";
+    if (op.type === "LTE") operator = "<=";
+    if (op.type === "GTE") operator = ">=";
+
+    left = {
+      type: "BINARY",
+      op: operator,
+      left,
+      right,
+    };
+  }
+
+  return left;
+}
+
+function parseMultiplication(): Expr {
   let left = parsePrimary();
 
-  while (peek()?.type === "PLUS") {
-    advance();
+  while (true) {
+    const op = peek();
 
+    if (!op || (op.type !== "STAR" && op.type !== "SLASH")) break;
+
+    advance();
     const right = parsePrimary();
 
     left = {
       type: "BINARY",
-      op: "+",
+      op: op.type === "STAR" ? "*" : "/",
+      left,
+      right,
+    };
+  }
+
+  return left;
+}
+
+// function parseComparison(): Expr {
+//   let left = parseAddition();
+
+//   while (true) {
+//     const operator = peek();
+
+//     if (!operator || (operator.type !== "LT" && operator.type !== "GT")) {
+//       break;
+//     }
+
+//     advance();
+
+//     const right = parseAddition();
+
+//     const op = operator.type === "LT" ? "<" : ">";
+
+//     left = {
+//       type: "BINARY",
+//       op,
+//       left,
+//       right,
+//     };
+//   }
+
+//   return left;
+// }
+
+function parseAddition(): Expr {
+  let left = parseMultiplication();
+
+  while (true) {
+    const op = peek();
+
+    if (!op || (op.type !== "PLUS" && op.type !== "MINUS")) break;
+
+    advance();
+    const right = parseMultiplication();
+
+    left = {
+      type: "BINARY",
+      op: op.type === "PLUS" ? "+" : "-",
       left,
       right,
     };

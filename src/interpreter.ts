@@ -16,9 +16,20 @@ function evalExpr(expr: Expr): Value {
             throw new Error(`Operator '${expr.op}' only supports numbers`);
         }
 
-        if (expr.op === "+") return left + right;
-        if (expr.op === "<") return left < right ? 1 : 0;
-        if (expr.op === ">") return left > right ? 1 : 0;
+        switch (expr.op) {
+            case "+": return left + right;
+            case "-": return left - right;
+            case "*": return left * right;
+            case "/": return left / right;
+
+            case "<": return left < right ? 1 : 0;
+            case ">": return left > right ? 1 : 0;
+            case "<=": return left <= right ? 1 : 0;
+            case ">=": return left >= right ? 1 : 0;
+
+            case "==": return left === right ? 1 : 0;
+            case "!=": return left !== right ? 1 : 0;
+        }
     }
 
     return 0;

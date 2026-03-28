@@ -1,8 +1,11 @@
-let x = 5
-let y = x + 10
+let x = 2 + 3 * 4
+let y = (2 + 3) * 4
 
-if y < 20 {
-  print y
+print x
+print y
+
+if x < y {
+  print 1
 } else {
-  print y + 100
+  print 0
 }
