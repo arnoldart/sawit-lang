@@ -1,0 +1,8 @@
+let x = 5
+let y = x + 10
+
+if y < 20 {
+  print y
+} else {
+  print y + 100
+}
